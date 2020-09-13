@@ -11,7 +11,7 @@ import kotlinx.coroutines.runBlocking
 
 fun main() {
     runBlocking {
-        val server = aSocket(ActorSelectorManager(Dispatchers.IO)).tcp().bind("127.0.0.1", 2323)
+        val server = aSocket(ActorSelectorManager(Dispatchers.IO)).tcp().bind("127.0.0.1", 6542)
         println("Started echo telnet server at ${server.localAddress}")
 
         while (true) {
