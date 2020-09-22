@@ -1,9 +1,9 @@
 package ec.actor
 
-enum class ControlByte {
-    PACKAGE_START,
-    PACKAGE_END,
-    CONTROL_PACKAGE_START,
-    CONTROL_PACKAGE_END,
-    IGNORE
+enum class ControlByte(val value: Byte) {
+    PACKAGE_START(1),
+    PACKAGE_END(2),
+    CONTROL_PACKAGE_START(3),
+    CONTROL_PACKAGE_END(4),
+    IGNORE(5)
 }
