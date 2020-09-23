@@ -4,6 +4,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.selects.whileSelect
 
 class Connection(
@@ -89,8 +90,7 @@ class Connection(
                             currentControlPackageChannel!!.send(null)
                             controlSection = mutableListOf()
                         }
-                        ControlByte.IGNORE.value -> {
-                        }
+                        ControlByte.IGNORE.value -> Unit
                         else                                    -> {
                             when (state) {
                                 1 -> {
@@ -109,6 +109,35 @@ class Connection(
     }
 
     suspend fun handleOutput() {
-
+        val encrypt = inputSessionKey.isNotEmpty() && outputSessionKey.isNotEmpty()
+        whileSelect {
+            resetOutput.onReceive {
+                startHandelOutput()
+                false
+            }
+            cancelOutput.onReceive {
+                false
+            }
+            output.onReceive {
+                var currentChannel: Channel<ByteArray?> = it
+                whileSelect {
+                    resetOutput.onReceive {
+                        startHandelOutput()
+                        false
+                    }
+                    cancelOutput.onReceive {
+                        false
+                    }
+                    it.onReceive {
+                        val controlBytes = ControlByte.values().map { it.value }
+                        if (it?.firstOrNull { controlBytes.contains(it) } != null) {
+                            TODO()
+                        }
+                        true
+                    }
+                }
+                true
+            }
+        }
     }
 }
