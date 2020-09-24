@@ -1,4 +1,4 @@
-package ec.actor
+@file:JvmName("Main")
 
 import io.ktor.network.selector.ActorSelectorManager
 import io.ktor.network.sockets.aSocket
@@ -11,10 +11,11 @@ import kotlinx.coroutines.runBlocking
 
 fun main() {
     runBlocking {
-        val server = aSocket(ActorSelectorManager(Dispatchers.IO)).tcp().bind("127.0.0.1", 6542)
-        println("Started echo telnet server at ${server.localAddress}")
+        aSocket(ActorSelectorManager(Dispatchers.IO)).tcp().connect("localhost", 6542)
 
-        while (true) {
+        val server = aSocket(ActorSelectorManager(Dispatchers.IO)).tcp().bind("localhost", 6542)
+        println("Started server at ${server.localAddress}")
+
             val socket = server.accept()
 
             launch {
@@ -35,6 +36,5 @@ fun main() {
                     socket.close()
                 }
             }
-        }
     }
 }

@@ -4,7 +4,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.selects.whileSelect
 
 class Connection(
@@ -28,6 +27,7 @@ class Connection(
             startHandelInput()
             startHandelOutput()
         }
+        // TODO exchange Keys
     }
 
     private fun startHandelInput() {
@@ -42,7 +42,7 @@ class Connection(
         }
     }
 
-    suspend fun handleInput() {
+    private suspend fun handleInput() {
         val encrypt = inputSessionKey.isNotEmpty() && outputSessionKey.isNotEmpty()
         var state = 0
         var currentPackageChannel: Channel<ByteArray?>? = null
@@ -108,7 +108,7 @@ class Connection(
         }
     }
 
-    suspend fun handleOutput() {
+    private suspend fun handleOutput() {
         val encrypt = inputSessionKey.isNotEmpty() && outputSessionKey.isNotEmpty()
         whileSelect {
             resetOutput.onReceive {
@@ -120,6 +120,8 @@ class Connection(
             }
             output.onReceive {
                 var currentChannel: Channel<ByteArray?> = it
+                var packageStartSend = false;
+                var packageEndSend = false;
                 whileSelect {
                     resetOutput.onReceive {
                         startHandelOutput()
@@ -129,11 +131,25 @@ class Connection(
                         false
                     }
                     it.onReceive {
+                        var section = it
                         val controlBytes = ControlByte.values().map { it.value }
-                        if (it?.firstOrNull { controlBytes.contains(it) } != null) {
-                            TODO()
+                        if (section?.firstOrNull { controlBytes.contains(it) } != null) {
+                            throw IllegalStateException(
+                                    "byte values ${controlBytes.joinToString()} are used as control characters and " +
+                                    "can therefore not be sent or must be encoded or escaped"
+                            )
                         }
-                        true
+                        if (section == null) {
+                            section = byteArrayOf(ControlByte.PACKAGE_END.value)
+                            packageEndSend = true
+                        }
+                        if (!packageStartSend) {
+                            section = byteArrayOf(ControlByte.PACKAGE_START.value) + section
+                            packageStartSend = true
+                        }
+                        //TODO add encryption
+                        rawOutputChannel.send(section)
+                        !packageEndSend
                     }
                 }
                 true
