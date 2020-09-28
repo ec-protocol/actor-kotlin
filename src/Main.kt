@@ -1,22 +1,41 @@
 @file:JvmName("Main")
 
-import io.ktor.network.selector.ActorSelectorManager
-import io.ktor.network.sockets.aSocket
-import io.ktor.network.sockets.openReadChannel
-import io.ktor.network.sockets.openWriteChannel
-import io.ktor.util.cio.write
+import ec.actor.Connection
+import io.ktor.network.selector.*
+import io.ktor.network.sockets.*
+import io.ktor.util.*
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
 fun main() {
     runBlocking {
-        aSocket(ActorSelectorManager(Dispatchers.IO)).tcp().connect("localhost", 6542)
+        val client = aSocket(ActorSelectorManager(Dispatchers.IO)).tcp().connect("localhost", 6542)
 
-        val server = aSocket(ActorSelectorManager(Dispatchers.IO)).tcp().bind("localhost", 6542)
+        val readChannel = Channel<ByteArray>()
+        val writeChannel = Channel<ByteArray>()
+
+        launch {
+            val channel = client.openReadChannel()
+            while (true) {
+                channel.read {
+                    it.moveToByteArray()
+                }
+            }
+        }
+
+        launch {
+
+        }
+
+        val connection = Connection(,)
+
+
+        /*val server = aSocket(ActorSelectorManager(Dispatchers.IO)).tcp().bind("localhost", 6542)
         println("Started server at ${server.localAddress}")
 
-            val socket = server.accept()
+        val socket = server.accept()
 
             launch {
                 println("Socket accepted: ${socket.remoteAddress}")
@@ -35,6 +54,6 @@ fun main() {
                     e.printStackTrace()
                     socket.close()
                 }
-            }
+            }*/
     }
 }
