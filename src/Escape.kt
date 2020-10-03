@@ -35,7 +35,7 @@ fun escape(pkg: ByteArray): ByteArray {
                 ret.add(ESCAPE_BYTE)
                 ret.add(ESCAPE_BYTE)
             }
-            else -> {
+            else                                    -> {
                 ret.add(it)
             }
         }
@@ -50,7 +50,7 @@ fun unescape(pkg: ByteArray): ByteArray {
         val byte = pkg[i]
         if (byte == ESCAPE_BYTE) {
             i++
-            when(pkg[i]) {
+            when (pkg[i]) {
                 PACKAGE_START_ESCAPE_BYTE -> {
                     ret.add(ControlByte.PACKAGE_START.value)
                 }
