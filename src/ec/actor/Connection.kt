@@ -20,7 +20,7 @@ class Connection(
     private val cancelOutput: Channel<Unit> = Channel()
     private val inputSessionKey: ByteArray = ByteArray(0)
     private val outputSessionKey: ByteArray = ByteArray(0)
-    private val controlInput: Channel<ByteArray> = Channel()
+    private val controlInput: Channel<Channel<ByteArray?>> = Channel()
 
     fun init(encrypt: Boolean = true) {
         if (!encrypt) {
@@ -48,6 +48,8 @@ class Connection(
         var currentPackageChannel: Channel<ByteArray?>? = null
         var currentControlPackageChannel: Channel<ByteArray?>? = null
         var leftover = byteArrayOf()
+        var section = mutableListOf<Byte>()
+        var controlSection = mutableListOf<Byte>()
         whileSelect {
             resetInput.onReceive {
                 startHandelInput()
@@ -60,8 +62,6 @@ class Connection(
                 var element = leftover + it
                 leftover = byteArrayOf()
                 //TODO add encryption
-                var section = mutableListOf<Byte>()
-                var controlSection = mutableListOf<Byte>()
                 element.forEach {
                     when (it) {
                         ControlByte.PACKAGE_START.value -> {
@@ -71,7 +71,7 @@ class Connection(
                             input.send(currentPackageChannel!!)
                         }
                         ControlByte.PACKAGE_END.value -> {
-                            if (state != 0) throw IllegalStateException()
+                            if (state != 1) throw IllegalStateException()
                             state = 0
                             if (section.isNotEmpty()) currentPackageChannel!!.send(section.toByteArray())
                             currentPackageChannel!!.send(null)
@@ -81,10 +81,10 @@ class Connection(
                             if (state != 0) throw IllegalStateException()
                             state = 2
                             currentControlPackageChannel = Channel()
-                            input.send(currentControlPackageChannel!!)
+                            controlInput.send(currentControlPackageChannel!!)
                         }
                         ControlByte.CONTROL_PACKAGE_END.value -> {
-                            if (state != 0) throw IllegalStateException()
+                            if (state != 2) throw IllegalStateException()
                             state = 0
                             if (controlSection.isNotEmpty()) currentControlPackageChannel!!.send(controlSection.toByteArray())
                             currentControlPackageChannel!!.send(null)
