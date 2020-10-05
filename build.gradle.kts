@@ -33,4 +33,5 @@ dependencies {
     implementation(kotlin("stdlib"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.9")
     implementation("io.ktor:ktor-network:1.4.0")
+    implementation("com.github.ajalt.clikt:clikt:3.0.1")
 }

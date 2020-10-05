@@ -6,28 +6,33 @@ private const val PACKAGE_END_ESCAPE_BYTE: Byte = 9
 private const val CONTROL_PACKAGE_START_ESCAPE_BYTE: Byte = 10
 private const val CONTROL_PACKAGE_END_ESCAPE_BYTE: Byte = 11
 private const val IGNORE_ESCAPE_BYTE: Byte = 12
+private val packageStartValue = ControlByte.PACKAGE_START.value
+private val packageEndValue = ControlByte.PACKAGE_END.value
+private val controlPackageStartValue = ControlByte.CONTROL_PACKAGE_START.value
+private val controlPackageEndValue = ControlByte.CONTROL_PACKAGE_END.value
+private val ignoreValue = ControlByte.IGNORE.value
 
 fun escape(pkg: ByteArray): ByteArray {
     val ret = arrayListOf<Byte>()
     pkg.forEach {
         when (it) {
-            ControlByte.PACKAGE_START.value -> {
+            packageStartValue -> {
                 ret.add(ESCAPE_BYTE)
                 ret.add(PACKAGE_START_ESCAPE_BYTE)
             }
-            ControlByte.PACKAGE_END.value -> {
+            packageEndValue -> {
                 ret.add(ESCAPE_BYTE)
                 ret.add(PACKAGE_END_ESCAPE_BYTE)
             }
-            ControlByte.CONTROL_PACKAGE_START.value -> {
+            controlPackageStartValue -> {
                 ret.add(ESCAPE_BYTE)
                 ret.add(CONTROL_PACKAGE_START_ESCAPE_BYTE)
             }
-            ControlByte.CONTROL_PACKAGE_END.value -> {
+            controlPackageEndValue -> {
                 ret.add(ESCAPE_BYTE)
                 ret.add(CONTROL_PACKAGE_END_ESCAPE_BYTE)
             }
-            ControlByte.IGNORE.value -> {
+            ignoreValue -> {
                 ret.add(ESCAPE_BYTE)
                 ret.add(IGNORE_ESCAPE_BYTE)
             }
@@ -35,7 +40,7 @@ fun escape(pkg: ByteArray): ByteArray {
                 ret.add(ESCAPE_BYTE)
                 ret.add(ESCAPE_BYTE)
             }
-            else                                    -> {
+            else                     -> {
                 ret.add(it)
             }
         }
@@ -52,19 +57,19 @@ fun unescape(pkg: ByteArray): ByteArray {
             i++
             when (pkg[i]) {
                 PACKAGE_START_ESCAPE_BYTE -> {
-                    ret.add(ControlByte.PACKAGE_START.value)
+                    ret.add(packageStartValue)
                 }
                 PACKAGE_END_ESCAPE_BYTE -> {
-                    ret.add(ControlByte.PACKAGE_END.value)
+                    ret.add(packageEndValue)
                 }
                 CONTROL_PACKAGE_START_ESCAPE_BYTE -> {
-                    ret.add(ControlByte.CONTROL_PACKAGE_START.value)
+                    ret.add(controlPackageStartValue)
                 }
                 CONTROL_PACKAGE_END_ESCAPE_BYTE -> {
-                    ret.add(ControlByte.CONTROL_PACKAGE_END.value)
+                    ret.add(controlPackageEndValue)
                 }
                 IGNORE_ESCAPE_BYTE -> {
-                    ret.add(ControlByte.IGNORE.value)
+                    ret.add(ignoreValue)
                 }
                 ESCAPE_BYTE -> {
                     ret.add(ESCAPE_BYTE)
