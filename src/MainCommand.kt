@@ -12,13 +12,15 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import java.io.File
 
-class Main : CliktCommand() {
+private const val MAX_PACKAGE_SIZE = 64 * 1024 - 60 - 1
 
-    val unsafe: Boolean by option(help = "disables encryption").flag("u", default = false)
-    val connect: String? by option("c", help = "address to connect to")
-    val listen: String? by option("l", help = "address to listen on")
-    val input: String? by option("in", "i", help = "input file path")
-    val output: String? by option("out", "o", help = "out file path")
+class MainCommand : CliktCommand() {
+
+    val unsafe: Boolean by option(help = "disables encryption").flag("-u", default = false)
+    val connect: String? by option("-c", help = "address to connect to")
+    val listen: String? by option("-l", help = "address to listen on")
+    val input: String? by option("--in", "-i", help = "input file path")
+    val output: String? by option("--out", "-o", help = "out file path")
 
     override fun run() = runBlocking {
         var isClient = true
@@ -90,4 +92,4 @@ class Main : CliktCommand() {
     }
 }
 
-fun main(args: Array<String>) = Main().main(args)
+fun main(args: Array<String>) = MainCommand().main(args)
