@@ -85,8 +85,32 @@ class MainCommand : CliktCommand() {
         } else {
             val channel = Channel<ByteArray?>()
             connection.output.send(channel)
-            val element = escape(File(input ?: "").readBytes())
-            channel.send(element)
+            val input = File(input ?: "").inputStream()
+            val buffer = ByteArray(MAX_PACKAGE_SIZE)
+            var leftover = byteArrayOf()
+            do {
+                val size = input.read(buffer)
+                if (size <= 0) {
+                    while (leftover.size >= MAX_PACKAGE_SIZE) {
+                        channel.send(leftover.sliceArray(0 until MAX_PACKAGE_SIZE))
+                        leftover = leftover.sliceArray(MAX_PACKAGE_SIZE until leftover.size)
+                    }
+                    if (leftover.isNotEmpty()) {
+                        channel.send(leftover)
+                    }
+                    break
+                } else {
+                    val element = leftover + escape(buffer.sliceArray(0 until size))
+                    if (element.size > MAX_PACKAGE_SIZE) {
+                        channel.send(element.sliceArray(0 until MAX_PACKAGE_SIZE))
+                        leftover = element.sliceArray(MAX_PACKAGE_SIZE until leftover.size)
+                        while (leftover.size >= MAX_PACKAGE_SIZE) {
+                            channel.send(leftover.sliceArray(0 until MAX_PACKAGE_SIZE))
+                            leftover = leftover.sliceArray(MAX_PACKAGE_SIZE until leftover.size)
+                        }
+                    }
+                }
+            } while (true)
             channel.send(null)
         }
     }
