@@ -16,7 +16,7 @@ private const val MAX_PACKAGE_SIZE = 64 * 1024 - 60 - 1
 
 class MainCommand : CliktCommand() {
 
-    val unsafe: Boolean by option(help = "disables encryption").flag("-u", default = false)
+    val unsafe: Boolean by option("-u", help = "disables encryption").flag(default = false)
     val connect: String? by option("-c", help = "address to connect to")
     val listen: String? by option("-l", help = "address to listen on")
     val input: String? by option("--in", "-i", help = "input file path")
@@ -86,31 +86,17 @@ class MainCommand : CliktCommand() {
             val channel = Channel<ByteArray?>()
             connection.output.send(channel)
             val input = File(input ?: "").inputStream()
-            val buffer = ByteArray(MAX_PACKAGE_SIZE)
             var leftover = byteArrayOf()
             do {
-                val size = input.read(buffer)
-                if (size <= 0) {
-                    while (leftover.size >= MAX_PACKAGE_SIZE) {
-                        channel.send(leftover.sliceArray(0 until MAX_PACKAGE_SIZE))
-                        leftover = leftover.sliceArray(MAX_PACKAGE_SIZE until leftover.size)
-                    }
-                    if (leftover.isNotEmpty()) {
-                        channel.send(leftover)
-                    }
-                    break
-                } else {
-                    val element = leftover + escape(buffer.sliceArray(0 until size))
-                    if (element.size > MAX_PACKAGE_SIZE) {
-                        channel.send(element.sliceArray(0 until MAX_PACKAGE_SIZE))
-                        leftover = element.sliceArray(MAX_PACKAGE_SIZE until leftover.size)
-                        while (leftover.size >= MAX_PACKAGE_SIZE) {
-                            channel.send(leftover.sliceArray(0 until MAX_PACKAGE_SIZE))
-                            leftover = leftover.sliceArray(MAX_PACKAGE_SIZE until leftover.size)
-                        }
-                    }
+                leftover += escape(input.readNBytes(MAX_PACKAGE_SIZE))
+                while(leftover.size >= MAX_PACKAGE_SIZE) {
+                    channel.send(leftover.sliceArray(0 until MAX_PACKAGE_SIZE))
+                    leftover = leftover.sliceArray(MAX_PACKAGE_SIZE until leftover.size)
                 }
-            } while (true)
+            } while (input.available() > 0)
+            if(leftover.isNotEmpty()) {
+                channel.send(leftover)
+            }
             channel.send(null)
         }
     }
