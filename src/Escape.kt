@@ -48,37 +48,43 @@ fun escape(pkg: ByteArray): ByteArray {
     return ret.toByteArray()
 }
 
-fun unescape(pkg: ByteArray): ByteArray {
+fun unescape(pkg: ByteArray) = contextAwareUnescape(pkg).first
+
+fun contextAwareUnescape(pkg: ByteArray, startInEscape: Boolean = false): Pair<ByteArray, Boolean> {
     val ret = arrayListOf<Byte>()
-    var i = 0
-    while (i < pkg.size) {
-        val byte = pkg[i]
-        if (byte == ESCAPE_BYTE) {
-            i++
-            when (pkg[i]) {
-                PACKAGE_START_ESCAPE_BYTE -> {
-                    ret.add(packageStartValue)
+    var escape = false
+    pkg.forEach {
+        when {
+            escape            -> {
+                when (it) {
+                    PACKAGE_START_ESCAPE_BYTE         -> {
+                        ret.add(packageStartValue)
+                    }
+                    PACKAGE_END_ESCAPE_BYTE           -> {
+                        ret.add(packageEndValue)
+                    }
+                    CONTROL_PACKAGE_START_ESCAPE_BYTE -> {
+                        ret.add(controlPackageStartValue)
+                    }
+                    CONTROL_PACKAGE_END_ESCAPE_BYTE   -> {
+                        ret.add(controlPackageEndValue)
+                    }
+                    IGNORE_ESCAPE_BYTE                -> {
+                        ret.add(ignoreValue)
+                    }
+                    ESCAPE_BYTE                       -> {
+                        ret.add(ESCAPE_BYTE)
+                    }
                 }
-                PACKAGE_END_ESCAPE_BYTE -> {
-                    ret.add(packageEndValue)
-                }
-                CONTROL_PACKAGE_START_ESCAPE_BYTE -> {
-                    ret.add(controlPackageStartValue)
-                }
-                CONTROL_PACKAGE_END_ESCAPE_BYTE -> {
-                    ret.add(controlPackageEndValue)
-                }
-                IGNORE_ESCAPE_BYTE -> {
-                    ret.add(ignoreValue)
-                }
-                ESCAPE_BYTE -> {
-                    ret.add(ESCAPE_BYTE)
-                }
+                escape = false
             }
-        } else {
-            ret.add(byte)
+            it == ESCAPE_BYTE -> {
+                escape = true
+            }
+            else              -> {
+                ret.add(it)
+            }
         }
-        i++
     }
-    return ret.toByteArray()
+    return Pair(ret.toByteArray(), escape)
 }

@@ -1,6 +1,7 @@
 @file:JvmName("Main")
 
 import com.github.ajalt.clikt.core.CliktCommand
+import com.github.ajalt.clikt.core.Context
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import ec.actor.Connection
@@ -64,24 +65,18 @@ class MainCommand : CliktCommand() {
         connection.init(!unsafe)
 
         if (isClient) {
-            val inBytes = File(input ?: "").readBytes()
             val pkgInputChannel = connection.input.receive()
-            var pkg = byteArrayOf()
-            while (true) {
-                val it = pkgInputChannel.receive() ?: break
-                pkg += it
-            }
-            val received = unescape(pkg)
-            File(output ?: "").apply {
+            var escape = false
+            val outFile = File(output ?: "").apply {
                 if (exists()) return@apply
                 parentFile?.mkdirs()
                 createNewFile()
-            }.writeBytes(received)
-            if (inBytes contentEquals received) {
-                println("complete")
-            } else {
-                println("failed")
+            }.apply { writeBytes(byteArrayOf()) }
+            while (true) {
+                val it = pkgInputChannel.receive() ?: break
+                outFile.appendBytes(contextAwareUnescape(it, escape).apply { escape = second }.first)
             }
+            println("complete")
         } else {
             val channel = Channel<ByteArray?>()
             connection.output.send(channel)
