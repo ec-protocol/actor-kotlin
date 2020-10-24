@@ -1,9 +1,14 @@
 package ec.actor
 
+import ec.actor.crypt.aes.AESKeyPairGenerator
+import ec.actor.crypt.aes.AESPrivateKey
+import ec.actor.crypt.aes.AESPublicKey
+import ec.actor.crypt.rsa.RSAKeyPairGenerator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.selects.whileSelect
 
 class Connection(
@@ -18,16 +23,72 @@ class Connection(
     private val resetOutput: Channel<Unit> = Channel()
     private val cancelInput: Channel<Unit> = Channel()
     private val cancelOutput: Channel<Unit> = Channel()
-    private val inputSessionKey: ByteArray = ByteArray(0)
-    private val outputSessionKey: ByteArray = ByteArray(0)
+    private var inputSessionKey: AESPrivateKey? = null
+    private var outputSessionKey: AESPublicKey? = null
     private val controlInput: Channel<Channel<ByteArray?>> = Channel()
 
     fun init(encrypt: Boolean = true) {
         if (!encrypt) {
             startHandelInput()
             startHandelOutput()
+            return
         }
-        // TODO exchange Keys
+
+        val initDone = Channel<Unit>()
+
+        val rsaKeyPairGenerator = RSAKeyPairGenerator(explicitKeySize = 2048)
+        val keyPair = rsaKeyPairGenerator()
+        val escapedEncodedPublicKey = escape(rsaKeyPairGenerator.exportPublic(keyPair.public))
+
+        scope.launch {
+            rawOutputChannel.send(
+                    byteArrayOf(
+                            ControlByte.CONTROL_PACKAGE_START.value,
+                            *escapedEncodedPublicKey,
+                            ControlByte.CONTROL_PACKAGE_END.value
+                    )
+            )
+        }
+
+        scope.launch {
+            var controlPackageChannel = controlInput.receive()
+            var controlPackage = byteArrayOf()
+            for (controlPackageSection in controlPackageChannel) {
+                if (controlPackageSection == null) break
+                controlPackage += controlPackageSection
+            }
+            val therePublicKey = rsaKeyPairGenerator.importPublic(unescape(controlPackage))
+            val aesKeyPairGenerator = AESKeyPairGenerator()
+            val sessionKey = aesKeyPairGenerator()
+            inputSessionKey = sessionKey.private
+            val exportedSessionKey = aesKeyPairGenerator.exportPublic(sessionKey.public)
+            val encryptedSessionKey = escape(therePublicKey.encrypt(exportedSessionKey))
+            rawOutputChannel.send(
+                    byteArrayOf(
+                            ControlByte.CONTROL_PACKAGE_START.value,
+                            *encryptedSessionKey,
+                            ControlByte.CONTROL_PACKAGE_END.value
+                    )
+            )
+            controlPackageChannel = controlInput.receive()
+            controlPackage = byteArrayOf()
+            for (controlPackageSection in controlPackageChannel) {
+                if (controlPackageSection == null) break
+                controlPackage += controlPackageSection
+            }
+
+            outputSessionKey = aesKeyPairGenerator.importPublic(keyPair.decrypt(unescape(controlPackage)))
+
+            resetInput.send(Unit)
+            resetOutput.send(Unit)
+
+            initDone.send(Unit)
+        }
+
+        startHandelInput()
+        startHandelOutput()
+
+        runBlocking { initDone.receive() }
     }
 
     private fun startHandelInput() {
@@ -43,13 +104,11 @@ class Connection(
     }
 
     private suspend fun handleInput() {
-        val encrypt = inputSessionKey.isNotEmpty() && outputSessionKey.isNotEmpty()
+        val encrypt = inputSessionKey != null && outputSessionKey != null
         var state = 0
         var currentPackageChannel: Channel<ByteArray?>? = null
         var currentControlPackageChannel: Channel<ByteArray?>? = null
         var leftover = byteArrayOf()
-        var section = mutableListOf<Byte>()
-        var controlSection = mutableListOf<Byte>()
         whileSelect {
             resetInput.onReceive {
                 startHandelInput()
@@ -62,6 +121,8 @@ class Connection(
                 var element = leftover + it
                 leftover = byteArrayOf()
                 //TODO add encryption
+                var section = mutableListOf<Byte>()
+                var controlSection = mutableListOf<Byte>()
                 element.forEach {
                     when (it) {
                         ControlByte.PACKAGE_START.value -> {
@@ -103,13 +164,15 @@ class Connection(
                         }
                     }
                 }
+                if (section.isNotEmpty()) currentPackageChannel!!.send(section.toByteArray())
+                if (controlSection.isNotEmpty()) currentControlPackageChannel!!.send(controlSection.toByteArray())
                 true
             }
         }
     }
 
     private suspend fun handleOutput() {
-        val encrypt = inputSessionKey.isNotEmpty() && outputSessionKey.isNotEmpty()
+        val encrypt = inputSessionKey != null && outputSessionKey != null
         whileSelect {
             resetOutput.onReceive {
                 startHandelOutput()
