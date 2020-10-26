@@ -109,6 +109,8 @@ class Connection(
         var currentPackageChannel: Channel<ByteArray?>? = null
         var currentControlPackageChannel: Channel<ByteArray?>? = null
         var leftover = byteArrayOf()
+        var section = mutableListOf<Byte>()
+        var controlSection = mutableListOf<Byte>()
         whileSelect {
             resetInput.onReceive {
                 startHandelInput()
@@ -121,8 +123,6 @@ class Connection(
                 var element = leftover + it
                 leftover = byteArrayOf()
                 //TODO add encryption
-                var section = mutableListOf<Byte>()
-                var controlSection = mutableListOf<Byte>()
                 element.forEach {
                     when (it) {
                         ControlByte.PACKAGE_START.value -> {
@@ -164,8 +164,6 @@ class Connection(
                         }
                     }
                 }
-                if (section.isNotEmpty()) currentPackageChannel!!.send(section.toByteArray())
-                if (controlSection.isNotEmpty()) currentControlPackageChannel!!.send(controlSection.toByteArray())
                 true
             }
         }
